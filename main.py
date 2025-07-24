@@ -36,25 +36,35 @@ def main():
         ]
     )
 
-    response = client.models.generate_content(model='gemini-2.0-flash-001', contents=messages, config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT, tools=[available_functions]))
+    try:
+        for i in range(0, 20):
+            response = client.models.generate_content(model='gemini-2.0-flash-001', contents=messages, config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT, tools=[available_functions]))
 
-    print(response.text)
+            # print(response.text)
+            for candidate in response.candidates:
+                messages.append(candidate.content)
 
-    if response.function_calls:
-        for function_call_part in response.function_calls:
-            # print(f"Calling function: {function_call_part.name}({function_call_part.args})")
-            # Sample Response: Calling function: run_python_file({'file_path': 'main.py'})
+            if response.text:
+                print("FINAL RESPONSE:")
+                print(response.text)
+                break
 
-            function_call_result = call_function(function_call_part, verbose=("--verbose" in arguments))
+            if response.function_calls:
+                for function_call_part in response.function_calls:
+                    # print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+                    # Sample Response: Calling function: run_python_file({'file_path': 'main.py'})
 
-            if function_call_result.parts[0].function_response.response:
-                if "--verbose" in arguments:
-                    print(f"-> {function_call_result.parts[0].function_response.response}")
-                else:
-                    print(f"-> {function_call_result.parts[0].function_response.response}")
-            else:
-                raise Exception("SOMETHING WENT WRONG :<<<!")
+                    function_call_result = call_function(function_call_part, verbose=("--verbose" in arguments))
 
+                    if function_call_result.parts[0].function_response.response:
+                        if "--verbose" in arguments:
+                            print(f"-> {function_call_result.parts[0].function_response.response}")
+                            messages.append(types.Content(role="tool", parts=[types.Part(text=function_call_result.parts[0].function_response.response)]))
+                    else:
+                        raise Exception("SOMETHING WENT WRONG :<<<!")
+    except Exception as e:
+        raise Exception(e)
+    
     if ("--verbose" in arguments):
         print(f"User prompt: {arguments[1]}")
         print("Prompt tokens:", response.usage_metadata.prompt_token_count)
